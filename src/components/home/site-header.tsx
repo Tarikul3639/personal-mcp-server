@@ -1,13 +1,24 @@
 import { Plug } from "lucide-react";
+import { Space_Grotesk } from "next/font/google";
+
+const font = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export default function SiteHeader() {
   return (
     <header className="rise flex items-center justify-between">
       <div className="flex items-center gap-2.5">
-        <span className="grid h-8 w-8 place-items-center rounded-md bg-[#F5C518] text-black">
-          <Plug size={18} strokeWidth={2.4} />
+        <span className="grid h-10 w-10 place-items-center rounded-md bg-[#F5C518] text-black">
+          <Plug size={23} strokeWidth={2.4} />
         </span>
-        <span className="text-base font-bold tracking-tight">personal-mcp</span>
+        <span
+          className={`${font.className} text-base font-bold tracking-tight`}
+        >
+          Tarikul MCP Hub
+        </span>
       </div>
       <a
         href="/api/auth/login"

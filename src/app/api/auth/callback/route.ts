@@ -3,23 +3,17 @@ import { handleGoogleCallback } from "@/lib/google-auth";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
+    const origin = request.nextUrl.origin;
 
     if (!code) {
-        return NextResponse.json(
-            { error: "Missing authorization code" },
-            { status: 400 },
-        );
+        return NextResponse.redirect(`${origin}/?auth=error`);
     }
 
     try {
         await handleGoogleCallback(code);
-        return NextResponse.redirect(new URL("/", request.url));
+        return NextResponse.redirect(`${origin}/?auth=success`);
     } catch (error) {
         console.error("Google OAuth callback failed:", error);
-
-        return NextResponse.json(
-            { error: "Google authentication failed" },
-            { status: 500 },
-        );
+        return NextResponse.redirect(`${origin}/?auth=error`);
     }
 }
