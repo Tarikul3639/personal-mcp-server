@@ -1,36 +1,32 @@
 {
   "name": "personal-mcp-server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start:dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
-    "build": "tsc --project tsconfig.json"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.14.0",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@12.14.0",
-  "type": "module",
   "dependencies": {
-    "@google-cloud/local-auth": "2.1.0",
+    "@google-cloud/local-auth": "^3.0.1",
     "@modelcontextprotocol/server": "^2.3.1",
-    "dotenv": "^18.0.8",
-    "googleapis": "105.0.0",
-    "tsx": "^4.23.15",
+    "googleapis": "^186.0.0",
+    "mcp-handler": "^2.3.0",
+    "next": "16.4.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
-    "typescript": "7.0.2"
-  }
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@12.14.0"
 }
