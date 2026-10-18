@@ -1,9 +1,5 @@
 import { google } from "googleapis";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-
-const TOKEN_DIR = path.join(process.cwd(), ".tokens");
-const TOKEN_FILE = path.join(TOKEN_DIR, "google-calendar.json");
+import { saveGoogleTokens, getGoogleTokens } from "@/lib/db";
 
 export const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID!,
@@ -22,15 +18,13 @@ export function getGoogleAuthUrl() {
 export async function handleGoogleCallback(code: string) {
     const { tokens } = await oauth2Client.getToken(code);
 
-    await mkdir(TOKEN_DIR, { recursive: true });
-    await writeFile(TOKEN_FILE, JSON.stringify(tokens), { mode: 0o600 });
-
+    await saveGoogleTokens(tokens);
     return tokens;
 }
 
 export async function getGoogleAuth() {
     try {
-        const tokens = JSON.parse(await readFile(TOKEN_FILE, "utf8"));
+        const tokens = await getGoogleTokens();
 
         oauth2Client.setCredentials(tokens);
         return oauth2Client;
