@@ -1,10 +1,47 @@
-export default function Page() {
+import { Bricolage_Grotesque } from "next/font/google";
+import Diagram from "@/components/home/diagram";
+import AuthNotice from "@/components/home/auth-notice";
+import FeaturesList from "@/components/home/features-list";
+import IntroSection from "@/components/home/intro-section";
+import SiteFooter from "@/components/home/site-footer";
+import SiteHeader from "@/components/home/site-header";
+
+const font = Bricolage_Grotesque({ subsets: ["latin"], display: "swap" });
+
+const GRID_STYLE = {
+  backgroundImage:
+    "radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1px)",
+  backgroundSize: "22px 22px",
+  WebkitMaskImage:
+    "radial-gradient(ellipse 70% 55% at 50% 0%, #000 25%, transparent 75%)",
+  maskImage:
+    "radial-gradient(ellipse 70% 55% at 50% 0%, #000 25%, transparent 75%)",
+};
+
+export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <h1 className="text-4xl font-bold">Personal MCP Server</h1>
-      <p className="mt-4 text-lg text-gray-600">
-        This is a personal server for the Model Context Protocol (MCP).
-      </p>
+    <main
+      className={`${font.className} relative min-h-screen overflow-hidden bg-black text-[#EDEDED] selection:bg-[#F5C518] selection:text-black`}
+      style={{ colorScheme: "dark" }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-140"
+        style={GRID_STYLE}
+      />
+
+      <div className="relative mx-auto max-w-2xl px-5 py-8 sm:py-14">
+        <SiteHeader />
+        <AuthNotice />
+        <IntroSection />
+
+        <div className="rise mt-12" style={{ animationDelay: "340ms" }}>
+          <Diagram />
+        </div>
+
+        <FeaturesList />
+        <SiteFooter />
+      </div>
     </main>
   );
 }
