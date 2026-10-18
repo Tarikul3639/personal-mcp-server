@@ -3,12 +3,9 @@ import { z } from "zod";
 
 const envSchema = z.object({
     GOOGLE_CLIENT_ID: z.string().min(1),
-    GOOGLE_PROJECT_ID: z.string().min(1),
-    GOOGLE_AUTH_URI: z.string().url(),
-    GOOGLE_TOKEN_URI: z.string().url(),
-    GOOGLE_AUTH_PROVIDER_CERT_URL: z.string().url(),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
     GOOGLE_REDIRECT_URIS: z.string().url(),
+    GOOGLE_AUTH_URL: z.string().url(),
 });
 
 const result = envSchema.safeParse(process.env);

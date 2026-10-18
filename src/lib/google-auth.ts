@@ -36,7 +36,7 @@ export async function getGoogleAuth() {
         return oauth2Client;
     } catch {
         throw new Error(
-            "Google Calendar not connected. Please connect your Google account first. Visit /api/auth/login to connect.",
+            `Google Calendar not connected. Connect your account here: ${process.env.GOOGLE_AUTH_URL}`,
         );
     }
 }
