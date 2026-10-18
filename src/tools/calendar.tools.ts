@@ -7,108 +7,30 @@ import {
     updateCalendarEvent,
     deleteCalendarEvent,
 } from "../services/calendar.service";
-import { z } from "zod";
 
-const dateTimeSchema = z.string().datetime({ offset: true });
-
-const colorIdSchema = z
-    .enum(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"])
-    .optional()
-    .describe(
-        "Google Calendar event color ID. Choose the ID based on the color requested by the user: " +
-        "1=Lavender, 2=Sage green, 3=Grape, 4=Flamingo pink, " +
-        "5=Banana yellow, 6=Tangerine orange, 7=Peacock blue, " +
-        "8=Graphite gray, 9=Blueberry blue, 10=Basil green, 11=Tomato red. " +
-        "If the user specifies a color, select its matching ID. " +
-        "If no color is requested, omit this field. Never use the color name itself as the ID.",
-    );
-
-const eventFields = {
-    summary: z.string().min(1).optional(),
-    start: dateTimeSchema.optional(),
-    end: dateTimeSchema.optional(),
-    description: z.string().optional(),
-    location: z.string().optional(),
-    colorId: colorIdSchema,
-    attendees: z
-        .array(
-            z.object({
-                email: z.string().email(),
-            }),
-        )
-        .optional(),
-    reminders: z
-        .object({
-            useDefault: z.boolean().optional(),
-            overrides: z
-                .array(
-                    z.object({
-                        method: z.enum(["email", "popup"]),
-                        minutes: z.number().int().min(0),
-                    }),
-                )
-                .optional(),
-        })
-        .optional(),
-    visibility: z
-        .enum(["default", "public", "private", "confidential"])
-        .optional(),
-    transparency: z.enum(["opaque", "transparent"]).optional(),
-    recurrence: z.array(z.string()).optional(),
-};
-
-const createEventSchema = z
-    .object({
-        ...eventFields,
-        summary: z.string().min(1),
-        start: dateTimeSchema,
-        end: dateTimeSchema,
-    })
-    .refine((event) => new Date(event.end) > new Date(event.start), {
-        message: "End time must be after start time.",
-        path: ["end"],
-    });
-
-const updateEventSchema = z.object({
-    eventId: z.string().min(1),
-    updates: z
-        .object(eventFields)
-        .refine(
-            (updates) => Object.keys(updates).length > 0,
-            "Provide at least one field to update.",
-        )
-        .refine(
-            (updates) =>
-                !updates.start ||
-                !updates.end ||
-                new Date(updates.end) > new Date(updates.start),
-            {
-                message: "End time must be after start time.",
-                path: ["end"],
-            },
-        ),
-});
+import {
+    createEventSchema,
+    updateEventSchema,
+    findEventsByDateSchema,
+    eventIdSchema,
+} from "../schemas/calendar.schema";
 
 function result(data: unknown) {
     return {
-        content: [
-            {
-                type: "text" as const,
-                text: JSON.stringify(data, null, 2),
-            },
-        ],
+        content: [{
+            type: "text" as const,
+            text: JSON.stringify(data, null, 2),
+        }],
     };
 }
 
 function failure(action: string, error: unknown) {
     return {
-        content: [
-            {
-                type: "text" as const,
-                text: `${action}: ${error instanceof Error ? error.message : String(error)
-                    }`,
-            },
-        ],
+        content: [{
+            type: "text" as const,
+            text: `${action}: ${error instanceof Error ? error.message : String(error)
+                }`,
+        }],
         isError: true,
     };
 }
@@ -118,8 +40,7 @@ export function registerCalendarTools(server: McpServer): void {
         "listCalendarEvents",
         {
             title: "List Calendar Events",
-            description:
-                "List the next 10 upcoming events from the primary Google Calendar.",
+            description: "List the next 10 upcoming events from the primary Google Calendar.",
         },
         async () => {
             try {
@@ -135,7 +56,7 @@ export function registerCalendarTools(server: McpServer): void {
         {
             title: "Create Calendar Event",
             description:
-                "Create a calendar event with description, location, color, attendees, reminders and recurrence.",
+                "Create a Google Calendar event. Supports title, start and end time, description, location, event color, attendees, reminders, visibility, transparency, and recurrence. Choose colorId from the documented Google Calendar color options when a color is requested.",
             inputSchema: createEventSchema.shape,
         },
         async (input) => {
@@ -153,13 +74,12 @@ export function registerCalendarTools(server: McpServer): void {
         {
             title: "Find Calendar Events by Date",
             description:
-                "Find upcoming calendar events whose start date matches YYYY-MM-DD.",
-            inputSchema: {
-                date: z.string().date(),
-            },
+                "Find upcoming calendar events whose start date matches the specified YYYY-MM-DD date.",
+            inputSchema: findEventsByDateSchema.shape,
         },
-        async ({ date }) => {
+        async (input) => {
             try {
+                const { date } = findEventsByDateSchema.parse(input);
                 return result(await findCalendarEventsByDate(date));
             } catch (error) {
                 return failure("Failed to find events", error);
@@ -171,13 +91,12 @@ export function registerCalendarTools(server: McpServer): void {
         "getCalendarEvent",
         {
             title: "Get Calendar Event",
-            description: "Get a Google Calendar event by its event ID.",
-            inputSchema: {
-                eventId: z.string().min(1),
-            },
+            description: "Retrieve a Google Calendar event using its event ID.",
+            inputSchema: eventIdSchema.shape,
         },
-        async ({ eventId }) => {
+        async (input) => {
             try {
+                const { eventId } = eventIdSchema.parse(input);
                 return result(await getCalendarEvent(eventId));
             } catch (error) {
                 return failure("Failed to get event", error);
@@ -190,7 +109,7 @@ export function registerCalendarTools(server: McpServer): void {
         {
             title: "Update Calendar Event",
             description:
-                "Update selected fields of an existing Google Calendar event.",
+                "Update selected fields of an existing Google Calendar event. Provide its event ID and at least one field to update.",
             inputSchema: updateEventSchema.shape,
         },
         async (input) => {
@@ -208,13 +127,12 @@ export function registerCalendarTools(server: McpServer): void {
         {
             title: "Delete Calendar Event",
             description:
-                "Permanently delete an event from the primary Google Calendar.",
-            inputSchema: {
-                eventId: z.string().min(1),
-            },
+                "Permanently delete an event from the primary Google Calendar using its event ID.",
+            inputSchema: eventIdSchema.shape,
         },
-        async ({ eventId }) => {
+        async (input) => {
             try {
+                const { eventId } = eventIdSchema.parse(input);
                 await deleteCalendarEvent(eventId);
                 return result({ success: true, eventId });
             } catch (error) {
