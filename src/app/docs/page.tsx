@@ -324,9 +324,10 @@ export default function DocsPage() {
               />
               <h3 className="mt-3 font-bold">Manage access</h3>
               <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
-                The dashboard lists connected MCP clients for
-                your Google account. Remove access there to block
-                that client’s current tokens and future renewals.
+                The dashboard lists MCP clients for your Google
+                account. Remove access there to block that
+                client’s current tokens and future renewals, or
+                restore it later to reconnect.
                 The list shows the client name supplied during
                 connection; it cannot identify a specific AI model.
               </p>

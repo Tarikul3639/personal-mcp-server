@@ -17,6 +17,7 @@ type ClientAccess = {
   client_id: string;
   client_name: string | null;
   granted_at: string;
+  revoked_at: string | null;
 };
 type Status = "checking" | "online" | "degraded";
 
@@ -89,30 +90,37 @@ export default function OwnerDashboard() {
     setClients([]);
   }
 
-  async function revokeClient(clientId: string) {
+  async function updateClientAccess(clientId: string, restore: boolean) {
     setRevokingClient(clientId);
     setError("");
 
     try {
       const response = await fetch("/api/auth/clients", {
-        method: "DELETE",
+        method: restore ? "POST" : "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_id: clientId }),
       });
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.error ?? "Could not remove this client access.");
+        throw new Error(data?.error ?? "Could not update client access.");
       }
 
       setClients((current) =>
-        current.filter((client) => client.client_id !== clientId),
+        current.map((client) =>
+          client.client_id === clientId
+            ? {
+                ...client,
+                revoked_at: restore ? null : new Date().toISOString(),
+              }
+            : client,
+        ),
       );
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "Could not remove this client access.",
+          : "Could not update client access.",
       );
     } finally {
       setRevokingClient(null);
@@ -266,8 +274,8 @@ export default function OwnerDashboard() {
               <div>
                 <p className="font-semibold">MCP access</p>
                 <p className="mt-1 text-sm text-[#8A8A8A]">
-                  These clients can use this Google Calendar. Your friend has
-                  a separate list for their account.
+                  Manage which clients can use this Google Calendar. Your
+                  friend has a separate list for their account.
                 </p>
                 {clients.length ? (
                   <ul className="mt-3 divide-y divide-[#2B2B2B] border-y border-[#2B2B2B]">
@@ -281,31 +289,39 @@ export default function OwnerDashboard() {
                             {client.client_name || "MCP client"}
                           </p>
                           <p className="mt-0.5 text-xs text-[#6B6B6B]">
-                            Connected {new Date(client.granted_at).toLocaleDateString()}
+                            {client.revoked_at
+                              ? `Access removed ${new Date(client.revoked_at).toLocaleDateString()}`
+                              : `Connected ${new Date(client.granted_at).toLocaleDateString()}`}
                           </p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => void revokeClient(client.client_id)}
+                          onClick={() =>
+                            void updateClientAccess(
+                              client.client_id,
+                              Boolean(client.revoked_at),
+                            )
+                          }
                           disabled={revokingClient !== null}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded border border-[#454545] px-3 text-xs font-semibold text-[#EDEDED] transition-colors hover:border-[#FF6B5E] hover:text-[#FF6B5E] disabled:opacity-50"
+                          className={`inline-flex min-h-9 items-center gap-1.5 rounded border px-3 text-xs font-semibold transition-colors disabled:opacity-50 ${client.revoked_at ? "border-[#F5C518] text-[#F5C518] hover:bg-[#F5C518] hover:text-black" : "border-[#454545] text-[#EDEDED] hover:border-[#FF6B5E] hover:text-[#FF6B5E]"}`}
                         >
                           {revokingClient === client.client_id ? (
                             <LoaderCircle size={13} className="animate-spin" />
                           ) : null}
-                          Remove access
+                          {client.revoked_at ? "Restore access" : "Remove access"}
                         </button>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="mt-3 text-sm text-[#6B6B6B]">
-                    No MCP clients are connected yet.
+                    No MCP clients have connected yet.
                   </p>
                 )}
                 <p className="mt-2 text-xs text-[#6B6B6B]">
-                  Access renews automatically until you remove it. Removing
-                  access blocks current and future tokens for that client.
+                  Active access renews automatically. Remove it to block
+                  current tokens and future renewals; restore it here to
+                  reconnect the same client.
                 </p>
               </div>
             </li>

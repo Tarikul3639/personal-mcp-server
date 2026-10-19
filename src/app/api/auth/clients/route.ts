@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import {
   listMcpClientAccess,
+  restoreMcpClientAccess,
   revokeMcpClientAccess,
 } from "@/lib/db";
 import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/mcp-auth";
@@ -58,6 +59,41 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json(
     { revoked: true },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function POST(request: NextRequest) {
+  const userId = await currentUserId();
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const body = await request.json().catch(() => null);
+  const clientId = body?.client_id;
+
+  if (typeof clientId !== "string" || !clientId) {
+    return NextResponse.json(
+      { error: "client_id is required" },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const restored = await restoreMcpClientAccess(userId, clientId);
+
+  if (!restored) {
+    return NextResponse.json(
+      { error: "Revoked client access not found" },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  return NextResponse.json(
+    { restored: true },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

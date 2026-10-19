@@ -99,6 +99,7 @@ export type McpClientAccess = {
   client_id: string;
   client_name: string | null;
   granted_at: Date;
+  revoked_at: Date | null;
 };
 
 export async function ensureMcpClientGrant(
@@ -136,14 +137,27 @@ export async function listMcpClientAccess(
   userId: string,
 ): Promise<McpClientAccess[]> {
   const { rows } = await pool.query(
-    `SELECT g.client_id, c.client_name, g.created_at AS granted_at
+    `SELECT g.client_id, c.client_name, g.created_at AS granted_at,
+            g.revoked_at
      FROM mcp_oauth_grants g
      JOIN mcp_oauth_clients c ON c.client_id = g.client_id
-     WHERE g.user_id = $1 AND g.revoked_at IS NULL
+     WHERE g.user_id = $1
      ORDER BY g.created_at DESC`,
     [userId.trim().toLowerCase()],
   );
   return rows as McpClientAccess[];
+}
+
+export async function restoreMcpClientAccess(
+  userId: string,
+  clientId: string,
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE mcp_oauth_grants SET revoked_at = NULL
+     WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NOT NULL`,
+    [userId.trim().toLowerCase(), clientId],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 export async function revokeMcpClientAccess(
