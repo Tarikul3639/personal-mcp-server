@@ -1,10 +1,10 @@
-import { CalendarDays, Radio, Unplug } from "lucide-react";
+import { CalendarDays, Radio, ShieldCheck } from "lucide-react";
 
 const FEATURES = [
   {
     Icon: CalendarDays,
     title: "Google Calendar",
-    text: "Read, create and move events from your assistant.",
+    text: "Read, create, update and delete events with your approval.",
   },
   {
     Icon: Radio,
@@ -12,9 +12,9 @@ const FEATURES = [
     text: "Every tool is served from the same URL.",
   },
   {
-    Icon: Unplug,
-    title: "Any MCP client",
-    text: "Streamable HTTP. Paste the URL and you are connected.",
+    Icon: ShieldCheck,
+    title: "Owner approved access",
+    text: "Secure remote OAuth with PKCE and short-lived access tokens.",
   },
 ];
 

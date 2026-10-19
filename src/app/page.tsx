@@ -30,7 +30,7 @@ export default function Home() {
         style={GRID_STYLE}
       />
 
-      <div className="relative mx-auto max-w-2xl px-5 py-8 sm:py-14">
+      <div className="relative mx-auto max-w-6xl px-5 py-8 sm:py-14">
         <SiteHeader />
         <AuthNotice />
         <IntroSection />

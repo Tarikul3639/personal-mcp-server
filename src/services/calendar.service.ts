@@ -20,8 +20,8 @@ type CreateEventInput = {
   recurrence?: string[];
 };
 
-export async function listCalendarEvents(): Promise<CalendarEvent[]> {
-  const auth = await getGoogleAuth();
+export async function listCalendarEvents(userId: string): Promise<CalendarEvent[]> {
+  const auth = await getGoogleAuth(userId);
 
   const { data } = await google.calendar({ version: "v3", auth }).events.list({
     calendarId: "primary",
@@ -35,9 +35,10 @@ export async function listCalendarEvents(): Promise<CalendarEvent[]> {
 }
 
 export async function createCalendarEvent(
+  userId: string,
   input: CreateEventInput,
 ): Promise<CalendarEvent> {
-  const auth = await getGoogleAuth();
+  const auth = await getGoogleAuth(userId);
   const { start, end, ...details } = input;
 
   const { data } = await google
@@ -55,9 +56,10 @@ export async function createCalendarEvent(
 }
 
 export async function findCalendarEventsByDate(
+  userId: string,
   date: string,
 ): Promise<CalendarEvent[]> {
-  const events = await listCalendarEvents();
+  const events = await listCalendarEvents(userId);
 
   return events.filter((event) => {
     const start = event.start?.dateTime ?? event.start?.date;
@@ -66,9 +68,10 @@ export async function findCalendarEventsByDate(
 }
 
 export async function getCalendarEvent(
+  userId: string,
   eventId: string,
 ): Promise<CalendarEvent> {
-  const auth = await getGoogleAuth();
+  const auth = await getGoogleAuth(userId);
 
   const { data } = await google.calendar({ version: "v3", auth }).events.get({
     calendarId: "primary",
@@ -79,10 +82,11 @@ export async function getCalendarEvent(
 }
 
 export async function updateCalendarEvent(
+  userId: string,
   eventId: string,
   updates: Partial<CreateEventInput>,
 ): Promise<CalendarEvent> {
-  const auth = await getGoogleAuth();
+  const auth = await getGoogleAuth(userId);
   const { start, end, ...details } = updates;
 
   const requestBody: calendar_v3.Schema$Event = {
@@ -100,8 +104,8 @@ export async function updateCalendarEvent(
   return data;
 }
 
-export async function deleteCalendarEvent(eventId: string): Promise<void> {
-  const auth = await getGoogleAuth();
+export async function deleteCalendarEvent(userId: string, eventId: string): Promise<void> {
+  const auth = await getGoogleAuth(userId);
 
   await google.calendar({ version: "v3", auth }).events.delete({
     calendarId: "primary",

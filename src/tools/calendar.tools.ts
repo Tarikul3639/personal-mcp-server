@@ -1,4 +1,4 @@
-import { McpServer } from "@modelcontextprotocol/server";
+import { McpServer, type ServerContext } from "@modelcontextprotocol/server";
 import {
     listCalendarEvents,
     createCalendarEvent,
@@ -14,6 +14,14 @@ import {
     findEventsByDateSchema,
     eventIdSchema,
 } from "../schemas/calendar.schema";
+import { verifyAccessToken } from "@/lib/mcp-auth";
+
+async function getUserId(ctx: ServerContext) {
+    const token = ctx.http?.authInfo?.token;
+    const user = token ? await verifyAccessToken(token) : null;
+    if (!user) throw new Error("A valid personal calendar authorization is required.");
+    return user.userId;
+}
 
 function result(data: unknown) {
     return {
@@ -42,9 +50,9 @@ export function registerCalendarTools(server: McpServer): void {
             title: "List Calendar Events",
             description: "List the next 10 upcoming events from the primary Google Calendar.",
         },
-        async () => {
+        async (ctx) => {
             try {
-                return result(await listCalendarEvents());
+                return result(await listCalendarEvents(await getUserId(ctx)));
             } catch (error) {
                 return failure("Failed to list events", error);
             }
@@ -59,10 +67,10 @@ export function registerCalendarTools(server: McpServer): void {
                 "Create a Google Calendar event. Supports title, start and end time, description, location, event color, attendees, reminders, visibility, transparency, and recurrence. Choose colorId from the documented Google Calendar color options when a color is requested.",
             inputSchema: createEventSchema.shape,
         },
-        async (input) => {
+        async (input, ctx) => {
             try {
                 const event = createEventSchema.parse(input);
-                return result(await createCalendarEvent(event));
+                return result(await createCalendarEvent(await getUserId(ctx), event));
             } catch (error) {
                 return failure("Failed to create event", error);
             }
@@ -77,10 +85,10 @@ export function registerCalendarTools(server: McpServer): void {
                 "Find upcoming calendar events whose start date matches the specified YYYY-MM-DD date.",
             inputSchema: findEventsByDateSchema.shape,
         },
-        async (input) => {
+        async (input, ctx) => {
             try {
                 const { date } = findEventsByDateSchema.parse(input);
-                return result(await findCalendarEventsByDate(date));
+                return result(await findCalendarEventsByDate(await getUserId(ctx), date));
             } catch (error) {
                 return failure("Failed to find events", error);
             }
@@ -94,10 +102,10 @@ export function registerCalendarTools(server: McpServer): void {
             description: "Retrieve a Google Calendar event using its event ID.",
             inputSchema: eventIdSchema.shape,
         },
-        async (input) => {
+        async (input, ctx) => {
             try {
                 const { eventId } = eventIdSchema.parse(input);
-                return result(await getCalendarEvent(eventId));
+                return result(await getCalendarEvent(await getUserId(ctx), eventId));
             } catch (error) {
                 return failure("Failed to get event", error);
             }
@@ -112,10 +120,10 @@ export function registerCalendarTools(server: McpServer): void {
                 "Update selected fields of an existing Google Calendar event. Provide its event ID and at least one field to update.",
             inputSchema: updateEventSchema.shape,
         },
-        async (input) => {
+        async (input, ctx) => {
             try {
                 const { eventId, updates } = updateEventSchema.parse(input);
-                return result(await updateCalendarEvent(eventId, updates));
+                return result(await updateCalendarEvent(await getUserId(ctx), eventId, updates));
             } catch (error) {
                 return failure("Failed to update event", error);
             }
@@ -130,10 +138,10 @@ export function registerCalendarTools(server: McpServer): void {
                 "Permanently delete an event from the primary Google Calendar using its event ID.",
             inputSchema: eventIdSchema.shape,
         },
-        async (input) => {
+        async (input, ctx) => {
             try {
                 const { eventId } = eventIdSchema.parse(input);
-                await deleteCalendarEvent(eventId);
+                await deleteCalendarEvent(await getUserId(ctx), eventId);
                 return result({ success: true, eventId });
             } catch (error) {
                 return failure("Failed to delete event", error);

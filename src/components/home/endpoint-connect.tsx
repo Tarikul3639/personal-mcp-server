@@ -43,8 +43,7 @@ export default function EndpointConnect() {
         <button
           onClick={copyUrl}
           aria-label="Copy endpoint URL"
-          className="flex min-h-11 w-auto min-w-20 shrink-0 items-center justify-center gap-1.5 px-3 text-xs font-semibold text-black transition-colors hover:bg-[#FFD84A] focus-visible:outline focus-visible:-outline-offset-4 focus-visible:outline-black active:bg-[#E0B410] sm:w-28 sm:gap-2 sm:px-4 sm:text-sm"
-          style={{ backgroundColor: "#F5C518" }}
+          className="flex min-h-11 w-auto min-w-20 shrink-0 items-center justify-center gap-1.5 bg-[#F5C518] px-3 text-xs font-semibold text-black transition-all hover:bg-[#FFD84A] hover:text-base focus-visible:outline focus-visible:-outline-offset-4 focus-visible:outline-black active:bg-[#E0B410] sm:w-28 sm:gap-2 sm:px-4 sm:text-sm"
         >
           {copied ? (
             <span key="done" className="pop flex items-center gap-1.5 whitespace-nowrap sm:gap-2">

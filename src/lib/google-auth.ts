@@ -1,16 +1,21 @@
+import "server-only";
 import { google } from "googleapis";
+import { env } from "@/lib/env";
 import { saveGoogleTokens, getGoogleTokens } from "@/lib/db";
 
-export const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID!,
-    process.env.GOOGLE_CLIENT_SECRET!,
-    process.env.GOOGLE_REDIRECT_URIS!.split(",")[0],
-);
+export function createGoogleOAuthClient() {
+    return new google.auth.OAuth2(
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET,
+        env.GOOGLE_REDIRECT_URIS.split(",")[0],
+    );
+}
 
-export function getGoogleAuthUrl() {
-    return oauth2Client.generateAuthUrl({
+export function getGoogleAuthUrl(state: string) {
+    return createGoogleOAuthClient().generateAuthUrl({
         access_type: "offline",
-        prompt: "consent",
+        prompt: "select_account consent",
+        state,
         scope: [
             "openid",
             "email",
@@ -21,6 +26,7 @@ export function getGoogleAuthUrl() {
 }
 
 export async function handleGoogleCallback(code: string) {
+    const oauth2Client = createGoogleOAuthClient();
     const { tokens } = await oauth2Client.getToken(code);
 
     oauth2Client.setCredentials(tokens);
@@ -38,26 +44,23 @@ export async function handleGoogleCallback(code: string) {
         picture: data.picture ?? null,
     });
 
-    return tokens;
-}
-
-export async function getGoogleAuth() {
-    const tokens = await getGoogleTokens();
-
-    oauth2Client.setCredentials(tokens);
-
-    return oauth2Client;
-}
-
-export async function getGoogleUser() {
-    const auth = await getGoogleAuth();
-    const oauth2 = google.oauth2({ version: "v2", auth });
-
-    const { data } = await oauth2.userinfo.get();
-
     return {
+        email: data.email?.trim().toLowerCase() ?? "",
         name: data.name ?? data.email ?? "Google User",
-        email: data.email ?? "",
         picture: data.picture ?? null,
     };
+}
+
+export async function getGoogleAuth(userId: string) {
+    const tokens = await getGoogleTokens(userId);
+
+    if (!tokens) {
+        throw new Error(
+            `Google account is not connected. Visit ${env.MCP_BASE_URL}/dashboard to connect your Google account.`,
+        );
+    }
+
+    const oauth2Client = createGoogleOAuthClient();
+    oauth2Client.setCredentials(tokens);
+    return oauth2Client;
 }

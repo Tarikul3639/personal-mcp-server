@@ -1,106 +1,108 @@
 # Personal MCP Server
 
-A personal Model Context Protocol (MCP) server built with Next.js that
-connects compatible AI clients to Google Calendar.
+A remote [Model Context Protocol](https://modelcontextprotocol.io/) server that lets compatible AI assistants work with Google Calendar. Each person connects their own Google account, and each MCP client needs that account holder’s approval.
 
 ![Personal MCP Server homepage](public/tarikuls-mcp.png)
 
-## Features
+![Personal dashboard showing account and connection status](public/dashboard.png)
 
-- Google OAuth login
-- List upcoming calendar events
-- Create, find, retrieve, update, and delete events
-- Event options for description, location, color, attendees,
-  reminders, visibility, transparency, and recurrence
+## Pages and links
 
-## Website
+- Website: <https://tarikuls-mcp.vercel.app>
+- Dashboard: <https://tarikuls-mcp.vercel.app/dashboard>
+- System documentation: <https://tarikuls-mcp.vercel.app/docs>
+- Remote MCP endpoint: <https://tarikuls-mcp.vercel.app/api/mcp>
+- Created by: <https://tarikul-islam.me/>
 
-- Website: https://tarikuls-mcp.vercel.app
-- MCP endpoint: https://tarikuls-mcp.vercel.app/api/mcp
+The homepage introduces the service and shows the MCP endpoint. The dashboard shows your Google account and connection status. The `/docs` page explains the connection, approval, and security flow.
 
-Use the website's **Login with Google** flow to authorize access. The
-homepage screenshot is stored at `public/tarikuls-mcp.png`.
+## How it works
 
-## Environment variables
+1. Sign in from the dashboard with Google and grant the server Google Calendar access.
+2. Add the `/api/mcp` endpoint to an MCP client that supports Streamable HTTP and OAuth discovery.
+3. Sign in with the Google account whose calendar you want the client to use.
+4. Review the client name and account on the approval screen, then approve or deny access.
+5. Ask the AI assistant to use the Calendar tools.
 
-Create a `.env.local` file in the project root and provide your own
-credentials:
+You and a friend can use the same server URL with separate Google accounts. Credentials are stored per account, and each access token is tied to one account. A client approved for one account cannot use another account’s calendar.
+
+### Available tools
+
+- `listCalendarEvents` — list the next 10 upcoming events.
+- `findCalendarEventsByDate` — find an event date among those upcoming events.
+- `getCalendarEvent` — retrieve an event by ID.
+- `createCalendarEvent` — create an event, including attendees, reminders, recurrence, and other event options.
+- `updateCalendarEvent` — update an existing event.
+- `deleteCalendarEvent` — delete an event by ID.
+- `ping` — check that the server is responding.
+
+## Run locally
+
+Requirements: Node.js, pnpm, a Google OAuth client, and a PostgreSQL database. This project uses Neon PostgreSQL by default.
+
+Install dependencies and create `.env.local` in the project root:
+
+```bash
+pnpm install
+```
 
 ```env
 GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
 GOOGLE_REDIRECT_URIS="http://localhost:3000/api/auth/callback"
 GOOGLE_AUTH_URL="http://localhost:3000/api/auth/login"
-DATABASE_URL="your_neon_postgresql_connection_string"
+DATABASE_URL="your_postgresql_connection_string"
+MCP_AUTH_SECRET="use-at-least-32-random-characters"
+MCP_BASE_URL="http://localhost:3000"
 ```
 
-Replace the placeholders with your actual values. Never commit
-`.env.local`, OAuth secrets, database credentials, or access/refresh
-tokens to Git. Keep `DATABASE_URL` server-side only.
-
-For production, configure these variables in your hosting provider and
-use the production login and callback URLs. Add the exact callback URL
-to the authorized redirect URIs in Google Cloud Console.
-
-## Getting started
-
-Requirements: Node.js, pnpm, Google OAuth credentials, and a Neon
-PostgreSQL database.
-
-Install dependencies:
+Initialize or upgrade the database schema, then start the app:
 
 ```bash
-pnpm install
-```
-
-Run locally:
-
-```bash
+pnpm db:setup
 pnpm dev
 ```
 
-Open <http://localhost:3000> and log in with Google.
+Open <http://localhost:3000>. The schema setup migrates an existing single-account Calendar connection into the per-account table. Keep `.env.local`, OAuth secrets, database credentials, and access or refresh tokens out of Git. `DATABASE_URL` and `MCP_AUTH_SECRET` must remain server-side.
 
-Build:
+Build the project with:
 
 ```bash
 pnpm run build
 ```
 
-## Connect an MCP client
+## Google OAuth setup
 
-Configure your MCP client to use this endpoint:
+1. Create or select a project in Google Cloud Console.
+2. Enable the Google Calendar API.
+3. Configure the OAuth consent screen and create a Web application OAuth client.
+4. Add the exact callback URL to the authorized redirect URIs. Locally this is `http://localhost:3000/api/auth/callback`; in production use your HTTPS domain.
+5. Set the environment variables above locally and in your hosting provider. Set `MCP_BASE_URL` to the public origin of the deployment.
+
+## Connect a remote MCP client
+
+Configure the client to use your server’s MCP endpoint:
 
 ```text
-https://tarikuls-mcp.vercel.app/api/mcp
+https://your-domain.example/api/mcp
 ```
 
-To inspect the available tools, run:
+The server publishes OAuth discovery metadata. An MCP client can use that to open the sign-in and approval flow. To inspect the endpoint during development, run:
 
 ```bash
 pnpm dlx @modelcontextprotocol/inspector
 ```
 
-Enter the endpoint in the Inspector UI and check the **Tools** tab.
+OAuth authorization uses PKCE (S256). Authorization codes expire after five minutes and MCP access tokens expire after 15 minutes. The server does not issue MCP refresh tokens, so the client must authorize again when its access token expires.
 
-## Google OAuth setup
+## Accounts and access
 
-1.  Select or create a project in Google Cloud Console.
-2.  Enable the Google Calendar API.
-3.  Configure the OAuth consent screen.
-4.  Create an OAuth client ID.
-5.  Add the app's exact callback URL to authorized redirect URIs.
-6.  Set the environment variables locally and in production.
+- Each Google account has its own Calendar credentials and profile record.
+- Every Calendar tool call uses the account identity from the verified MCP access token.
+- A user must explicitly approve each MCP client authorization request for their account.
+- Google credentials stay on the server and are not sent to the browser or MCP client.
+- Dashboard sessions use signed, HttpOnly, SameSite cookies and expire after 12 hours.
+- Disconnecting Calendar removes that account’s saved credentials and attempts to revoke its Google token.
+- Anyone who can reach the public website can sign in and connect their own Google account. There is no invite-only email allowlist; users cannot access another account’s Calendar without that account’s authorization.
 
-## Security
-
-- Never expose `GOOGLE_CLIENT_SECRET` or `DATABASE_URL` to client-side
-  code.
-- Never commit real credentials or tokens.
-- Use HTTPS for production OAuth callbacks.
-- If credentials are exposed, rotate them immediately.
-
-## License
-
-Add a `LICENSE` file if you intend to publish this project under an
-open-source license.
+Use HTTPS in production. If any credentials are exposed, revoke or rotate them immediately.

@@ -9,14 +9,14 @@ export default function IntroSection() {
         className="rise text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl"
         style={{ animationDelay: "80ms" }}
       >
-        Plug your calendar into any AI assistant.
+        Your calendar, connected on your terms.
       </h1>
       <p
         className="rise mt-4 max-w-md text-base leading-relaxed text-[#8A8A8A]"
         style={{ animationDelay: "160ms" }}
       >
-        A small MCP server that lets your assistant work with your Google
-        Calendar. Copy the URL, paste it into your client.
+        Connect Google Calendar to a remote MCP client. Every client asks for
+        your approval first, and you can see each connection from one dashboard.
       </p>
       <EndpointConnect />
     </section>
