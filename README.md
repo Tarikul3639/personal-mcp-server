@@ -1,6 +1,6 @@
 # Personal MCP Server
 
-A remote [Model Context Protocol](https://modelcontextprotocol.io/) server that lets compatible AI assistants work with Google Calendar. Each person connects their own Google account, and each MCP client needs that account holder’s approval.
+A remote [Model Context Protocol](https://modelcontextprotocol.io/) server that lets compatible AI assistants work with Google Calendar. Each person connects their own Google account and signs in with that account when connecting an MCP client.
 
 ![Personal MCP Server homepage](public/tarikuls-mcp.png)
 
@@ -14,17 +14,17 @@ A remote [Model Context Protocol](https://modelcontextprotocol.io/) server that 
 - Remote MCP endpoint: <https://tarikuls-mcp.vercel.app/api/mcp>
 - Created by: <https://tarikul-islam.me/>
 
-The homepage introduces the service and shows the MCP endpoint. The dashboard shows your Google account and connection status. The `/docs` page explains the connection, approval, and security flow.
+The homepage introduces the service and shows the MCP endpoint. The dashboard shows your Google account and connection status. The `/docs` page explains the connection and security flow.
 
 ## How it works
 
 1. Sign in from the dashboard with Google and grant the server Google Calendar access.
 2. Add the `/api/mcp` endpoint to an MCP client that supports Streamable HTTP and OAuth discovery.
-3. Sign in with the Google account whose calendar you want the client to use.
-4. Review the client name and account on the approval screen, then approve or deny access.
+3. When prompted, sign in with the Google account whose calendar you want to use.
+4. The server uses the signed-in account and redirects the client back automatically.
 5. Ask the AI assistant to use the Calendar tools.
 
-You and a friend can use the same server URL with separate Google accounts. Credentials are stored per account, and each access token is tied to one account. A client approved for one account cannot use another account’s calendar.
+You and a friend can use the same server URL with separate Google accounts. Credentials are stored per account, and each access token is tied to the Google account that signed in. One user’s access token cannot read another user’s calendar.
 
 ### Available tools
 
@@ -87,21 +87,26 @@ Configure the client to use your server’s MCP endpoint:
 https://your-domain.example/api/mcp
 ```
 
-The server publishes OAuth discovery metadata. An MCP client can use that to open the sign-in and approval flow. To inspect the endpoint during development, run:
+The server publishes OAuth discovery metadata. An MCP client uses that to open the Google sign-in flow. After sign-in, the server issues an authorization code automatically. To inspect the endpoint during development, run:
 
 ```bash
 pnpm dlx @modelcontextprotocol/inspector
 ```
 
-OAuth authorization uses PKCE (S256). Authorization codes expire after five minutes and MCP access tokens expire after 15 minutes. The server does not issue MCP refresh tokens, so the client must authorize again when its access token expires.
+Before deploying persistent client grants and refresh-token support, apply `src/sql/schema.sql` to the production database (or run `pnpm db:setup` with its `DATABASE_URL`). Recreate the ChatGPT connector after deployment so it reloads OAuth metadata and requests `offline_access`.
+
+OAuth authorization uses PKCE (S256). Authorization codes expire after five minutes and MCP access tokens expire after 15 minutes. Refresh tokens rotate each time they are used and stay active until the user revokes the client or disconnects Google Calendar. ChatGPT can renew access in the background without asking you to sign in again. Authorization uses the Google account connected to the current signed-in session; there is no separate MCP client approval page.
 
 ## Accounts and access
 
 - Each Google account has its own Calendar credentials and profile record.
 - Every Calendar tool call uses the account identity from the verified MCP access token.
-- A user must explicitly approve each MCP client authorization request for their account.
+- Google sign-in identifies the account, and Google’s Calendar permission grants the server access to that account’s calendar.
+- The first connection creates a persistent grant for that Google account and MCP client. The dashboard lists each client and can revoke its grant; revocation blocks existing access tokens and removes refresh tokens.
+- The dashboard shows the registered MCP client name, not the specific AI model using that client.
 - Google credentials stay on the server and are not sent to the browser or MCP client.
 - Dashboard sessions use signed, HttpOnly, SameSite cookies and expire after 12 hours.
+- MCP refresh tokens are stored as hashes, rotate on use, and are revoked when Calendar is disconnected.
 - Disconnecting Calendar removes that account’s saved credentials and attempts to revoke its Google token.
 - Anyone who can reach the public website can sign in and connect their own Google account. There is no invite-only email allowlist; users cannot access another account’s Calendar without that account’s authorization.
 

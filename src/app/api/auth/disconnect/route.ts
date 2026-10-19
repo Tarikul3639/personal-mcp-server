@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { disconnectGoogleAccount, getGoogleTokens } from "@/lib/db";
+import {
+  disconnectGoogleAccount,
+  getGoogleTokens,
+  revokeAllMcpClientAccess,
+} from "@/lib/db";
 import { createGoogleOAuthClient } from "@/lib/google-auth";
 import { USER_SESSION_COOKIE, verifyUserSession } from "@/lib/mcp-auth";
 
@@ -30,6 +34,7 @@ export async function DELETE() {
     }
   }
 
+  await revokeAllMcpClientAccess(userId);
   await disconnectGoogleAccount(userId);
 
   return NextResponse.json(

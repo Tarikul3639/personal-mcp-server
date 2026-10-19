@@ -13,6 +13,11 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type User = { name: string; email: string; picture: string | null };
+type ClientAccess = {
+  client_id: string;
+  client_name: string | null;
+  granted_at: string;
+};
 type Status = "checking" | "online" | "degraded";
 
 const LOGIN_HREF = "/api/auth/login?next=%2Fdashboard";
@@ -29,14 +34,25 @@ async function fetchUser(signal?: AbortSignal): Promise<User | null> {
   return response.ok ? data.user : null;
 }
 
+async function fetchClientAccess(signal?: AbortSignal): Promise<ClientAccess[]> {
+  const response = await fetch("/api/auth/clients", {
+    cache: "no-store",
+    signal,
+  });
+  const data = await response.json().catch(() => null);
+  return response.ok && Array.isArray(data?.clients) ? data.clients : [];
+}
+
 const isAbort = (reason: unknown) =>
   reason instanceof Error && reason.name === "AbortError";
 
 export default function OwnerDashboard() {
   const [user, setUser] = useState<User | null>(null);
+  const [clients, setClients] = useState<ClientAccess[]>([]);
   const [status, setStatus] = useState<Status>("checking");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [revokingClient, setRevokingClient] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -58,12 +74,49 @@ export default function OwnerDashboard() {
         if (!signal.aborted) setLoading(false);
       });
 
+    fetchClientAccess(signal)
+      .then(setClients)
+      .catch((e) => {
+        if (!isAbort(e)) setClients([]);
+      });
+
     return () => controller.abort();
   }, []);
 
   async function logout() {
     await fetch("/api/auth/session", { method: "DELETE" });
     setUser(null);
+    setClients([]);
+  }
+
+  async function revokeClient(clientId: string) {
+    setRevokingClient(clientId);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/clients", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: clientId }),
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Could not remove this client access.");
+      }
+
+      setClients((current) =>
+        current.filter((client) => client.client_id !== clientId),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Could not remove this client access.",
+      );
+    } finally {
+      setRevokingClient(null);
+    }
   }
 
   async function disconnect() {
@@ -77,6 +130,7 @@ export default function OwnerDashboard() {
         throw new Error("Could not disconnect this Google account.");
       setLoading(true);
       setUser(await fetchUser().catch(() => null));
+      setClients([]);
       setLoading(false);
     } catch (reason) {
       setError(
@@ -122,7 +176,7 @@ export default function OwnerDashboard() {
             <div>
               <p className="font-semibold">Connect your own Google Calendar</p>
               <p className="mt-1 max-w-md text-sm leading-relaxed text-[#8A8A8A]">
-                Each person signs in with Google. MCP clients you authorize can
+                Each person signs in with Google. MCP clients use
                 access only your calendar.
               </p>
             </div>
@@ -186,7 +240,7 @@ export default function OwnerDashboard() {
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-[#8A8A8A]">
-                  Only OAuth clients you approve can use your calendar.
+                  Signed-in MCP clients use this connected calendar.
                 </p>
                 <button
                   onClick={() => void disconnect()}
@@ -210,14 +264,48 @@ export default function OwnerDashboard() {
                 className="mt-0.5 shrink-0 text-[#F5C518]"
               />
               <div>
-                <p className="font-semibold">MCP client approval</p>
+                <p className="font-semibold">MCP access</p>
                 <p className="mt-1 text-sm text-[#8A8A8A]">
-                  Each client asks for your approval before getting a
-                  short-lived token. Your friend signs in separately for their
-                  calendar.
+                  These clients can use this Google Calendar. Your friend has
+                  a separate list for their account.
                 </p>
-                <p className="mt-2.5 text-sm font-medium text-[#F5C518]">
-                  Approval required every time
+                {clients.length ? (
+                  <ul className="mt-3 divide-y divide-[#2B2B2B] border-y border-[#2B2B2B]">
+                    {clients.map((client) => (
+                      <li
+                        key={client.client_id}
+                        className="flex flex-wrap items-center justify-between gap-3 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-white">
+                            {client.client_name || "MCP client"}
+                          </p>
+                          <p className="mt-0.5 text-xs text-[#6B6B6B]">
+                            Connected {new Date(client.granted_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void revokeClient(client.client_id)}
+                          disabled={revokingClient !== null}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded border border-[#454545] px-3 text-xs font-semibold text-[#EDEDED] transition-colors hover:border-[#FF6B5E] hover:text-[#FF6B5E] disabled:opacity-50"
+                        >
+                          {revokingClient === client.client_id ? (
+                            <LoaderCircle size={13} className="animate-spin" />
+                          ) : null}
+                          Remove access
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 text-sm text-[#6B6B6B]">
+                    No MCP clients are connected yet.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-[#6B6B6B]">
+                  Access renews automatically until you remove it. Removing
+                  access blocks current and future tokens for that client.
                 </p>
               </div>
             </li>
@@ -238,7 +326,7 @@ export default function OwnerDashboard() {
       {/* footer */}
       <div className="flex items-center gap-2 border-t-2 border-[#2B2B2B] px-5 py-3 text-sm text-[#6B6B6B]">
         <ShieldCheck size={14} />
-        Separate Google account · Per-user credentials · Explicit MCP approval
+        Separate Google account · Per-user credentials · Short-lived MCP tokens
       </div>
     </section>
   );

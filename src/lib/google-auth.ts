@@ -14,7 +14,7 @@ export function createGoogleOAuthClient() {
 export function getGoogleAuthUrl(state: string) {
     return createGoogleOAuthClient().generateAuthUrl({
         access_type: "offline",
-        prompt: "select_account consent",
+        prompt: "select_account",
         state,
         scope: [
             "openid",

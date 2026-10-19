@@ -1,5 +1,6 @@
 import "server-only";
 import { jwtVerify, SignJWT } from "jose";
+import { hasActiveMcpClientGrant } from "@/lib/db";
 import { env } from "@/lib/env";
 
 const secret = new TextEncoder().encode(env.MCP_AUTH_SECRET);
@@ -32,6 +33,7 @@ export async function verifyAccessToken(token: string): Promise<McpUser | null> 
     });
 
     if (typeof payload.sub !== "string" || typeof payload.client_id !== "string" || payload.scope !== "calendar") return null;
+    if (!(await hasActiveMcpClientGrant(payload.sub, payload.client_id))) return null;
     return { userId: payload.sub, clientId: payload.client_id };
   } catch {
     return null;

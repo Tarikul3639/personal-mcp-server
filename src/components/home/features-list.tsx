@@ -4,7 +4,7 @@ const FEATURES = [
   {
     Icon: CalendarDays,
     title: "Google Calendar",
-    text: "Read, create, update and delete events with your approval.",
+    text: "Read, create, update and delete events in your connected account.",
   },
   {
     Icon: Radio,
@@ -13,7 +13,7 @@ const FEATURES = [
   },
   {
     Icon: ShieldCheck,
-    title: "Owner approved access",
+    title: "Personal account access",
     text: "Secure remote OAuth with PKCE and short-lived access tokens.",
   },
 ];

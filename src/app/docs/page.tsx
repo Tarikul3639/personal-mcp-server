@@ -20,7 +20,7 @@ const font = Bricolage_Grotesque({
 export const metadata = {
   title: "How it works | Tarikul's MCP",
   description:
-    "Learn how personal Google Calendar accounts connect to the remote MCP server and how client authorization works.",
+    "Learn how personal Google Calendar accounts connect to the remote MCP server and how sign-in authorizes calendar access.",
 };
 
 const GRID_STYLE = {
@@ -48,14 +48,14 @@ const STEPS = [
   },
   {
     number: "03",
-    title: "Review the client request",
-    text: "Sign in with the Google account whose calendar you want to use. Check the client name and account email on the approval screen, then approve or deny the request.",
+    title: "Sign in with Google when prompted",
+    text: "Use the Google account whose calendar you want the client to access. Once signed in, the server completes the OAuth connection automatically.",
     Icon: Check,
   },
   {
     number: "04",
     title: "Ask your assistant to manage events",
-    text: "After approval, the MCP client can call calendar tools with your account. Each request is tied to the account that approved that client.",
+    text: "The MCP client can call calendar tools with your account. Every access token is tied to the Google account that signed in.",
     Icon: CalendarDays,
   },
 ];
@@ -127,7 +127,7 @@ export default function DocsPage() {
           <p className="mt-4 max-w-xl text-base leading-relaxed text-[#8A8A8A]">
             Your AI client connects to this MCP server. The server
             uses your own Google authorization to work with your
-            Calendar, after you approve the client.
+            Calendar, after you sign in with that account.
           </p>
 
           <div className="mt-6 inline-flex max-w-full items-center gap-3 overflow-hidden rounded-lg border-2 border-[#F5C518] bg-black px-4 py-3 shadow-[4px_4px_0_#F5C518]">
@@ -176,8 +176,8 @@ export default function DocsPage() {
             title="You and your friend keep separate calendars"
           >
             Both of you can use the same server. Each person signs
-            in with their own Google account and approves MCP
-            clients for that account.
+            in with their own Google account. The server uses
+            that account for the client connection.
           </SectionTitle>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -230,7 +230,7 @@ export default function DocsPage() {
           >
             Calendar tools work with the signed-in account’s
             primary Google Calendar. Event creation and changes
-            happen only after the client has been approved.
+            happen using the Google account that signed in.
           </SectionTitle>
 
           <ul className="divide-y divide-[#242424] border-y-2 border-[#242424]">
@@ -265,7 +265,7 @@ export default function DocsPage() {
         <section className="rise mt-12" aria-label="Security details">
           <SectionTitle
             eyebrow="Security"
-            title="Authorization stays explicit and short-lived"
+            title="Account access stays separate and revocable"
           />
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -274,11 +274,13 @@ export default function DocsPage() {
                 size={19}
                 className="text-[#F5C518]"
               />
-              <h3 className="mt-3 font-bold">Client approval</h3>
+              <h3 className="mt-3 font-bold">Google sign-in</h3>
               <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
-                The OAuth approval page shows the client and
-                Google account. You can approve or deny each
-                request.
+                The signed-in Google account determines which
+                Calendar the MCP client can use. Each person signs
+                in separately for their own account. The first
+                connection creates a persistent grant for that
+                client and account.
               </p>
             </div>
 
@@ -293,8 +295,10 @@ export default function DocsPage() {
               <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
                 Authorization codes use PKCE and expire after
                 5 minutes. MCP access tokens expire after 15
-                minutes; clients need to authorize again after
-                expiry.
+                minutes and are renewed using rotating refresh
+                tokens. Refresh tokens stay active until you
+                remove the client from the dashboard or
+                disconnect Google Calendar.
               </p>
             </div>
 
@@ -318,13 +322,23 @@ export default function DocsPage() {
                 size={19}
                 className="text-[#F5C518]"
               />
-              <h3 className="mt-3 font-bold">
-                Disconnect any time
-              </h3>
+              <h3 className="mt-3 font-bold">Manage access</h3>
               <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
-                Use the dashboard to disconnect Google Calendar.
-                The server removes that account’s saved
-                credentials and revokes the token when possible.
+                The dashboard lists connected MCP clients for
+                your Google account. Remove access there to block
+                that client’s current tokens and future renewals.
+                The list shows the client name supplied during
+                connection; it cannot identify a specific AI model.
+              </p>
+            </div>
+
+            <div className="border-2 border-[#2B2B2B] p-4">
+              <CalendarDays size={19} className="text-[#F5C518]" />
+              <h3 className="mt-3 font-bold">Disconnect Calendar</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[#8A8A8A]">
+                Disconnecting Google Calendar removes the saved
+                account credentials and revokes every MCP client
+                grant for that account.
               </p>
             </div>
           </div>

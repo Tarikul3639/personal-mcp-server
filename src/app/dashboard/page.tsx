@@ -32,7 +32,7 @@ export default function DashboardPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#F5C518]">Account</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Personal dashboard</h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/55 sm:text-base">
-            Manage your Google Calendar connection and approve remote MCP clients.
+            Manage your Google Calendar connection for remote MCP clients.
           </p>
         </div>
         <OwnerDashboard />

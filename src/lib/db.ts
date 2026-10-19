@@ -1,5 +1,6 @@
 
 import "server-only";
+import { createHash } from "node:crypto";
 import { Pool } from "pg";
 import type { Credentials } from "google-auth-library";
 import { env } from "@/lib/env";
@@ -94,6 +95,121 @@ export async function getOAuthClient(clientId: string): Promise<OAuthClient | nu
   return (rows[0] as OAuthClient | undefined) ?? null;
 }
 
+export type McpClientAccess = {
+  client_id: string;
+  client_name: string | null;
+  granted_at: Date;
+};
+
+export async function ensureMcpClientGrant(
+  userId: string,
+  clientId: string,
+): Promise<boolean> {
+  const normalizedUserId = userId.trim().toLowerCase();
+  await pool.query(
+    `INSERT INTO mcp_oauth_grants (user_id, client_id)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id, client_id) DO NOTHING`,
+    [normalizedUserId, clientId],
+  );
+  const { rows } = await pool.query(
+    `SELECT revoked_at FROM mcp_oauth_grants
+     WHERE user_id = $1 AND client_id = $2`,
+    [normalizedUserId, clientId],
+  );
+  return rows.length > 0 && rows[0].revoked_at === null;
+}
+
+export async function hasActiveMcpClientGrant(
+  userId: string,
+  clientId: string,
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `SELECT 1 FROM mcp_oauth_grants
+     WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NULL`,
+    [userId.trim().toLowerCase(), clientId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+export async function listMcpClientAccess(
+  userId: string,
+): Promise<McpClientAccess[]> {
+  const { rows } = await pool.query(
+    `SELECT g.client_id, c.client_name, g.created_at AS granted_at
+     FROM mcp_oauth_grants g
+     JOIN mcp_oauth_clients c ON c.client_id = g.client_id
+     WHERE g.user_id = $1 AND g.revoked_at IS NULL
+     ORDER BY g.created_at DESC`,
+    [userId.trim().toLowerCase()],
+  );
+  return rows as McpClientAccess[];
+}
+
+export async function revokeMcpClientAccess(
+  userId: string,
+  clientId: string,
+): Promise<boolean> {
+  const client = await pool.connect();
+  const normalizedUserId = userId.trim().toLowerCase();
+
+  try {
+    await client.query("BEGIN");
+    const { rowCount } = await client.query(
+      `UPDATE mcp_oauth_grants SET revoked_at = NOW()
+       WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NULL`,
+      [normalizedUserId, clientId],
+    );
+    if (!rowCount) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+    await client.query(
+      `DELETE FROM mcp_refresh_tokens WHERE user_id = $1 AND client_id = $2`,
+      [normalizedUserId, clientId],
+    );
+    await client.query(
+      `DELETE FROM mcp_authorization_codes WHERE user_id = $1 AND client_id = $2`,
+      [normalizedUserId, clientId],
+    );
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function revokeAllMcpClientAccess(userId: string): Promise<void> {
+  const client = await pool.connect();
+  const normalizedUserId = userId.trim().toLowerCase();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE mcp_oauth_grants SET revoked_at = NOW()
+       WHERE user_id = $1 AND revoked_at IS NULL`,
+      [normalizedUserId],
+    );
+    await client.query(
+      `DELETE FROM mcp_refresh_tokens WHERE user_id = $1`,
+      [normalizedUserId],
+    );
+    await client.query(
+      `DELETE FROM mcp_authorization_codes WHERE user_id = $1`,
+      [normalizedUserId],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function createAuthorizationCode(input: {
   code: string;
   clientId: string;
@@ -126,6 +242,86 @@ export async function consumeAuthorizationCode(input: { code: string; clientId: 
     code_challenge_method: string;
     user_id: string;
   } | undefined;
+}
+
+export async function saveMcpRefreshToken(input: {
+  token: string;
+  clientId: string;
+  userId: string;
+  familyId: string;
+}): Promise<void> {
+  const tokenHash = createHash("sha256").update(input.token).digest("hex");
+  await pool.query(
+    `INSERT INTO mcp_refresh_tokens
+      (token_hash, client_id, user_id, family_id)
+     VALUES ($1, $2, $3, $4)`,
+    [tokenHash, input.clientId, input.userId.trim().toLowerCase(), input.familyId],
+  );
+}
+
+export async function rotateMcpRefreshToken(input: {
+  currentTokenHash: string;
+  nextToken: string;
+  clientId: string;
+}): Promise<{ userId: string } | null> {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query(
+      `SELECT user_id, family_id, used_at, expires_at
+       FROM mcp_refresh_tokens
+       WHERE token_hash = $1 AND client_id = $2
+       FOR UPDATE`,
+      [input.currentTokenHash, input.clientId],
+    );
+    const current = rows[0] as {
+      user_id: string;
+      family_id: string;
+      used_at: Date | null;
+      expires_at: Date | null;
+    } | undefined;
+
+    if (!current) {
+      await client.query("COMMIT");
+      return null;
+    }
+
+    if (
+      current.used_at ||
+      (current.expires_at && current.expires_at.getTime() <= Date.now())
+    ) {
+      await client.query(
+        `DELETE FROM mcp_refresh_tokens WHERE family_id = $1`,
+        [current.family_id],
+      );
+      await client.query("COMMIT");
+      return null;
+    }
+
+    const nextTokenHash = createHash("sha256")
+      .update(input.nextToken)
+      .digest("hex");
+
+    await client.query(
+      `UPDATE mcp_refresh_tokens SET used_at = NOW() WHERE token_hash = $1`,
+      [input.currentTokenHash],
+    );
+    await client.query(
+      `INSERT INTO mcp_refresh_tokens
+        (token_hash, client_id, user_id, family_id)
+       VALUES ($1, $2, $3, $4)`,
+      [nextTokenHash, input.clientId, current.user_id, current.family_id],
+    );
+    await client.query("COMMIT");
+
+    return { userId: current.user_id };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function disconnectGoogleAccount(userId: string) {

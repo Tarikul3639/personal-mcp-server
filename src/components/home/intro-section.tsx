@@ -15,8 +15,8 @@ export default function IntroSection() {
         className="rise mt-4 max-w-md text-base leading-relaxed text-[#8A8A8A]"
         style={{ animationDelay: "160ms" }}
       >
-        Connect Google Calendar to a remote MCP client. Every client asks for
-        your approval first, and you can see each connection from one dashboard.
+        Connect Google Calendar to a remote MCP client. Sign in with your Google
+        account, then manage your connection from one dashboard.
       </p>
       <EndpointConnect />
     </section>
