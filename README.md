@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal MCP Server
 
-## Getting Started
+A personal Model Context Protocol (MCP) server built with Next.js that
+connects compatible AI clients to Google Calendar.
 
-First, run the development server:
+![Personal MCP Server homepage](public/tarikuls-mcp.png)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- Google OAuth login
+- List upcoming calendar events
+- Create, find, retrieve, update, and delete events
+- Event options for description, location, color, attendees,
+  reminders, visibility, transparency, and recurrence
+
+## Website
+
+- Website: https://tarikuls-mcp.vercel.app
+- MCP endpoint: https://tarikuls-mcp.vercel.app/api/mcp
+
+Use the website's **Login with Google** flow to authorize access. The
+homepage screenshot is stored at `public/tarikuls-mcp.png`.
+
+## Environment variables
+
+Create a `.env.local` file in the project root and provide your own
+credentials:
+
+```env
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
+GOOGLE_REDIRECT_URIS="http://localhost:3000/api/auth/callback"
+GOOGLE_AUTH_URL="http://localhost:3000/api/auth/login"
+DATABASE_URL="your_neon_postgresql_connection_string"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Replace the placeholders with your actual values. Never commit
+`.env.local`, OAuth secrets, database credentials, or access/refresh
+tokens to Git. Keep `DATABASE_URL` server-side only.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For production, configure these variables in your hosting provider and
+use the production login and callback URLs. Add the exact callback URL
+to the authorized redirect URIs in Google Cloud Console.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Getting started
 
-## Learn More
+Requirements: Node.js, pnpm, Google OAuth credentials, and a Neon
+PostgreSQL database.
 
-To learn more about Next.js, take a look at the following resources:
+Install dependencies:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm install
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run locally:
 
-## Deploy on Vercel
+```bash
+pnpm dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open <http://localhost:3000> and log in with Google.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build:
+
+```bash
+pnpm run build
+```
+
+## Connect an MCP client
+
+Configure your MCP client to use this endpoint:
+
+```text
+https://tarikuls-mcp.vercel.app/api/mcp
+```
+
+To inspect the available tools, run:
+
+```bash
+pnpm dlx @modelcontextprotocol/inspector
+```
+
+Enter the endpoint in the Inspector UI and check the **Tools** tab.
+
+## Google OAuth setup
+
+1.  Select or create a project in Google Cloud Console.
+2.  Enable the Google Calendar API.
+3.  Configure the OAuth consent screen.
+4.  Create an OAuth client ID.
+5.  Add the app's exact callback URL to authorized redirect URIs.
+6.  Set the environment variables locally and in production.
+
+## Security
+
+- Never expose `GOOGLE_CLIENT_SECRET` or `DATABASE_URL` to client-side
+  code.
+- Never commit real credentials or tokens.
+- Use HTTPS for production OAuth callbacks.
+- If credentials are exposed, rotate them immediately.
+
+## License
+
+Add a `LICENSE` file if you intend to publish this project under an
+open-source license.
